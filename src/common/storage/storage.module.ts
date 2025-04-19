@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 
-import { StorageService } from './storage.service';
+import { MinioService } from '@common/storage/minio.service';
+import { StorageService } from '@common/storage/storage.service';
 
 @Module({
-  providers: [StorageService],
-  exports: [StorageService],
+  imports: [ConfigModule],
+  providers: [StorageService, MinioService],
+  exports: [StorageService, MinioService],
 })
 export class StorageModule {}

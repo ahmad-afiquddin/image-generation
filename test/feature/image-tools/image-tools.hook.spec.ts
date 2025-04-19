@@ -70,7 +70,7 @@ describe('ImageToolsHook', () => {
       await hook.onModuleInit();
 
       // Create a mock event to test the callbacks
-      const mockEvent = new ThumbnailWorkerEvent('input', 'output', 'url');
+      const mockEvent = new ThumbnailWorkerEvent('input', 'output', 'filename', 'url');
       const mockError = new Error('Test error');
 
       // Test success callback
@@ -93,7 +93,7 @@ describe('ImageToolsHook', () => {
   // Test the callback methods directly
   describe('callback methods', () => {
     it('onThumbnailSuccess should call imageToolsService.handleThumbnailSuccess', () => {
-      const mockEvent = new ThumbnailWorkerEvent('input', 'output', 'url');
+      const mockEvent = new ThumbnailWorkerEvent('input', 'output', 'filename', 'url');
 
       // Call the private method
       (hook as any).onThumbnailSuccess(mockEvent);
@@ -102,7 +102,7 @@ describe('ImageToolsHook', () => {
     });
 
     it('onThumbnailError should not throw', () => {
-      const mockEvent = new ThumbnailWorkerEvent('input', 'output', 'url');
+      const mockEvent = new ThumbnailWorkerEvent('input', 'output', 'filename', 'url');
       const mockError = new Error('Test error');
 
       // Call the private method

@@ -8,7 +8,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 
 import { ThumbnailDto } from '@feature/image-tools/dto/image-tools.dto';
-import { ImageToolsModule } from '@feature/image-tools/image-tools.module';
+import { ImageToolsController } from '@feature/image-tools/image-tools.controller';
 import { ImageToolsService } from '@feature/image-tools/image-tools.service';
 
 describe('ImageToolsController (e2e)', () => {
@@ -26,27 +26,30 @@ describe('ImageToolsController (e2e)', () => {
     },
   ];
 
+  const mockImageToolsService = {
+    generateThumbnail: jest.fn().mockResolvedValue('thumbnail-job-id'),
+    getAllThumbnails: jest.fn().mockResolvedValue(mockThumbnails),
+    getThumbnailById: jest.fn().mockImplementation((id: string) => {
+      if (id === 'thumb1') {
+        return Promise.resolve({ ...mockThumbnails[0] });
+      }
+      if (id === 'thumb2') {
+        return Promise.resolve({ ...mockThumbnails[1] });
+      }
+      throw new NotFoundException(`Thumbnail ${id} does not exist`);
+    }),
+  };
+
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [ImageToolsModule],
-    })
-      .overrideProvider(ImageToolsService)
-      .useValue({
-        generateThumbnail: jest.fn().mockResolvedValue('thumbnail-job-id'),
-        getAllThumbnails: jest.fn().mockResolvedValue(mockThumbnails),
-        getThumbnailById: jest.fn().mockImplementation((id: string, origin: string) => {
-          if (id === 'thumb1') {
-            const thumbnail = { ...mockThumbnails[0] };
-            return Promise.resolve(thumbnail);
-          }
-          if (id === 'thumb2') {
-            const thumbnail = { ...mockThumbnails[1] };
-            return Promise.resolve(thumbnail);
-          }
-          throw new NotFoundException(`Thumbnail ${id} does not exist`);
-        }),
-      })
-      .compile();
+      controllers: [ImageToolsController],
+      providers: [
+        {
+          provide: ImageToolsService,
+          useValue: mockImageToolsService,
+        },
+      ],
+    }).compile();
 
     app = moduleFixture.createNestApplication();
     imageToolsService = moduleFixture.get<ImageToolsService>(ImageToolsService);

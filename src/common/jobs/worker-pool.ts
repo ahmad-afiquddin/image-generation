@@ -8,17 +8,38 @@ import { JobDataDto, WorkerMessage } from '@common/jobs/dto/jobs.dto';
 import { WorkerEventConfig, WorkerEvent } from '@common/jobs/worker';
 import { RedisService } from '@common/redis/redis.service';
 
+/**
+ * Service responsible for managing worker threads and job processing
+ *
+ * Maintains a pool of workers to execute background jobs, handling job queuing,
+ * execution, success/failure processing, and cleanup.
+ */
 @Injectable()
 export class WorkerPool {
   private readonly logger = new Logger(WorkerPool.name);
+  /** Maximum number of concurrent workers based on CPU count */
   private readonly maxPool = Math.max(cpus().length, 1);
+  /** Map of worker event names to their configurations */
   private workerConfigMap: Map<string, WorkerEventConfig> = new Map();
+  /** Set of currently active worker threads */
   private activeWorkers: Set<Worker> = new Set();
+  /** Queue of worker events waiting to be processed */
   private workerEventQueue: WorkerEvent[] = [];
+  /** Number of currently running workers */
   private running = 0;
 
+  /**
+   * Creates a new WorkerPool instance
+   *
+   * @param redisService - Service to interact with Redis for job data persistence
+   */
   constructor(private readonly redisService: RedisService) {}
 
+  /**
+   * Lifecycle hook called when the application starts
+   *
+   * Looks for unfinished jobs in Redis and adds them back to the processing queue
+   */
   async onApplicationBootstrap() {
     // server has restarted, there are unfinshed jobs on redis
     // get all jobs.status =/= success that have retries of > 0
@@ -38,11 +59,28 @@ export class WorkerPool {
     void Promise.all(promises);
   }
 
+  /**
+   * Lifecycle hook called when the module is being destroyed
+   *
+   * Terminates all running workers to ensure clean shutdown
+   */
   async onModuleDestroy() {
     // Stop all running workers
     await this.terminateAllWorkers();
   }
 
+  /**
+   * Registers a worker event handler with the pool
+   *
+   * @param workerEvent - The event type to subscribe to
+   * @param scriptPath - Path to the worker script that will handle the event
+   * @param subscriber - The instance that will receive callbacks
+   * @param successCallback - Function to call when job completes successfully
+   * @param errorCallback - Function to call when job fails
+   * @param override - Whether to override an existing subscription
+   * @returns Promise that resolves when subscription is complete
+   * @throws Error if configuration already exists and override is false
+   */
   public subscribe(
     workerEvent: WorkerEvent,
     scriptPath: string,
@@ -67,6 +105,12 @@ export class WorkerPool {
     });
   }
 
+  /**
+   * Unregisters a worker event handler from the pool
+   *
+   * @param workerEvent - The event type to unsubscribe
+   * @returns Promise that resolves when unsubscription is complete
+   */
   public unsubscribe(workerEvent: WorkerEvent): Promise<void> {
     const workerEventName = workerEvent.constructor.name;
 
@@ -80,6 +124,13 @@ export class WorkerPool {
     });
   }
 
+  /**
+   * Posts a new event to be processed by a worker
+   *
+   * @param workerEvent - The event to be processed
+   * @returns Promise that resolves when the event is added to the queue
+   * @throws Error if no configuration exists for the event type
+   */
   public async postEvent(workerEvent: WorkerEvent): Promise<void> {
     return new Promise((resolve, reject) => {
       const workerEventName = workerEvent.constructor.name;
@@ -93,16 +144,28 @@ export class WorkerPool {
           void this.processQueue();
         })
         .catch((err: Error) => {
-          this.logger.error('Cannot save job: %s', err.message);
+          this.logger.error('[postEvent] Cannot save job: %s', err.message);
         });
       resolve();
     });
   }
 
+  /**
+   * Creates a Redis key for a job based on its ID
+   *
+   * @param id - The job ID
+   * @returns The formatted Redis key
+   */
   public createJobKey(id: string): string {
     return `${JobKey}:${id}`;
   }
 
+  /**
+   * Adds a worker event to the queue and saves it to Redis
+   *
+   * @param workerEvent - The event to add and save
+   * @private
+   */
   private async addAndSaveWorkerEvent(workerEvent: WorkerEvent) {
     // Add to queue
     this.workerEventQueue.push(workerEvent);
@@ -116,6 +179,11 @@ export class WorkerPool {
     await this.redisService.setChild(JobCollectionKey, this.createJobKey(workerEvent.id), jobData);
   }
 
+  /**
+   * Processes the next event in the queue if workers are available
+   *
+   * @private
+   */
   private async processQueue() {
     if (!this.workerEventQueue.length) return;
     if (this.running >= this.maxPool) return;
@@ -187,6 +255,13 @@ export class WorkerPool {
     }
   }
 
+  /**
+   * Terminates a worker and removes it from the active workers set
+   *
+   * @param worker - The worker to clean up
+   * @param retries - Number of termination attempts remaining
+   * @private
+   */
   private cleanupWorker(worker: Worker, retries = 3) {
     this.running--;
     void this.processQueue();
@@ -207,6 +282,12 @@ export class WorkerPool {
       });
   }
 
+  /**
+   * Updates a job's status to "processing" in Redis
+   *
+   * @param workerEvent - The event being processed
+   * @private
+   */
   private async handleProcessing(workerEvent: WorkerEvent) {
     const jobKey = this.createJobKey(workerEvent.id);
     const jobData = (await this.redisService.getChild<JobDataDto>(JobCollectionKey, jobKey)) as JobDataDto;
@@ -216,6 +297,15 @@ export class WorkerPool {
     }
   }
 
+  /**
+   * Handles successful job completion
+   *
+   * @param workerEvent - The completed event
+   * @param data - Result data from the worker
+   * @param subscriber - The instance that will receive the callback
+   * @param successCallback - Function to call with the result
+   * @private
+   */
   private async handleSuccess(
     workerEvent: WorkerEvent,
     data: any,
@@ -233,6 +323,15 @@ export class WorkerPool {
     }
   }
 
+  /**
+   * Handles job failure
+   *
+   * @param workerEvent - The failed event
+   * @param err - The error that occurred
+   * @param subscriber - The instance that will receive the callback
+   * @param errorCallback - Function to call with the error
+   * @private
+   */
   private handleError(workerEvent: WorkerEvent, err: Error, subscriber: any, errorCallback: (err: Error) => void) {
     this.logger.error('[handleError] Error running worker for %s: %s', workerEvent.id, err.message);
     workerEvent.retries--;
@@ -248,6 +347,13 @@ export class WorkerPool {
     }
   }
 
+  /**
+   * Handles a job failure when no retries remain
+   *
+   * @param workerEvent - The failed event
+   * @param message - The error message
+   * @private
+   */
   private async handleNoRetriesError(workerEvent: WorkerEvent, message: string) {
     // Update status in redis to failed
     const jobKey = this.createJobKey(workerEvent.id);
@@ -259,13 +365,18 @@ export class WorkerPool {
     }
   }
 
+  /**
+   * Terminates all active workers
+   *
+   * @private
+   */
   private async terminateAllWorkers() {
     const promises = Array.from(this.activeWorkers).map((worker) => worker.terminate());
 
     try {
       await Promise.all(promises);
     } catch {
-      this.logger.error('Failed to terminate workers');
+      this.logger.error('[terminateAllWorkers] Failed to terminate workers');
     }
 
     this.activeWorkers.clear();

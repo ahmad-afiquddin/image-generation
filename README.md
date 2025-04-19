@@ -61,6 +61,15 @@ Make a copy of .env.example, rename it to .env and fill in the following info:
 PORT=<Port for nest.js application>
 REDIS_HOST=<Redis server host>
 REDIS_PORT=<Redis server port>
+MINIO_ENDPOINT=<Minio server host>
+MINIO_PORT=<Minio server port>
+MINIO_USE_SSL=<Using SSL transport?>
+MINIO_ACCESS_KEY=<Access key>
+MINIO_SECRET_KEY=<Secret key>
+MINIO_BUCKET_NAME=<Bucket to store thumbnail>
+MINIO_PUBLIC_URL=<Public URL to access bucket>
+MINIO_REGION=<Bucket region>
+
 ```
 
 Run in development mode:
@@ -102,6 +111,8 @@ This will:
 
 - Build the NestJS application container with all required dependencies
 - Start a Redis server
+- Start a Minio server
+- Create bucket for thumbnails and set access to public
 - Connect the services
 - Mount necessary volumes for storage
 
@@ -163,6 +174,7 @@ Handles file operations:
 
 - Temporary file storage during processing
 - Permanent storage for finished thumbnails
+- Uploading files to Minio bucket
 - File path management and cleanup
 
 #### Image Tools Module
@@ -281,7 +293,7 @@ Get all jobs.
 ```json
 [
   {
-    "id": "job-id-123456";
+    "id": "job-id-123456",
     "status": "queued" | "processing" | "success" | "failed",
     "event": {
       "id": "job-id-123456",
@@ -371,7 +383,7 @@ Given more time and resources, there are a few areas that can be improved:
 
 ### Production Readiness
 
-1. Cloud Storage Integration: Replace local file storage with S3 for persistence and scalability
+1. Cloud Storage Integration: Replace local file storage with S3 for persistence and scalability (DONE in this version)
 2. Database: Move thumbnail data storage to proper database (SQL) for better querying and durability
 3. TTL: Implement TTLs and job to prevent accumulation of stale data
 
