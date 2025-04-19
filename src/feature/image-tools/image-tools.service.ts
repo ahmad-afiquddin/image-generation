@@ -96,17 +96,12 @@ export class ImageToolsService {
   /**
    * Retrieves all thumbnails
    *
-   * @param origin - The origin URL to prepend to relative paths
    * @returns Array of thumbnail data with absolute URLs
    */
-  async getAllThumbnails(origin: string): Promise<ThumbnailDto[]> {
+  async getAllThumbnails(): Promise<ThumbnailDto[]> {
     const thumbnailData = await this.redisService.getAllChildren<ThumbnailDto>(ThumbnailCollectionKey);
-    const formattedThumbnails = Object.values(thumbnailData);
-    formattedThumbnails.map((thumbnail) => {
-      thumbnail.url = this.transformUrl(origin, thumbnail.url);
-    });
 
-    return formattedThumbnails;
+    return Object.values(thumbnailData);
   }
 
   /**
@@ -117,7 +112,7 @@ export class ImageToolsService {
    * @returns Thumbnail data with absolute URL
    * @throws NotFoundException if the thumbnail doesn't exist
    */
-  async getThumbnailById(id: string, origin: string) {
+  async getThumbnailById(id: string): Promise<ThumbnailDto> {
     const thumbnailData = (await this.redisService.getChild<ThumbnailDto>(
       ThumbnailCollectionKey,
       this.createThumbnailKey(id),
@@ -126,8 +121,6 @@ export class ImageToolsService {
     if (!thumbnailData) {
       throw new NotFoundException(`Thumbnail ${id} does not exist`);
     }
-
-    thumbnailData.url = this.transformUrl(origin, thumbnailData.url);
 
     return thumbnailData;
   }

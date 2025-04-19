@@ -2,7 +2,6 @@ import { Body, Controller, Get, Param, Post, UploadedFile, UseInterceptors, Vali
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
-import { OriginUrl } from '@common/decorators/original-url.decorator';
 import { ImageValidationPipe } from '@common/pipes/image-validation.pipe';
 
 import { CreateThumbnailReqDto, CreateThumbnailResDto, ThumbnailDto } from '@feature/image-tools/dto/image-tools.dto';
@@ -17,8 +16,8 @@ export class ImageToolsController {
     summary: 'Return all created thumbnails',
   })
   @ApiResponse({ type: Array<ThumbnailDto>, description: 'thumbnails' })
-  async getAllThumbnails(@OriginUrl() origin: string) {
-    return this.imageToolsService.getAllThumbnails(origin);
+  async getAllThumbnails() {
+    return this.imageToolsService.getAllThumbnails();
   }
 
   @Get('thumbnails/:id')
@@ -26,8 +25,8 @@ export class ImageToolsController {
     summary: 'Return all created thumbnails',
   })
   @ApiResponse({ type: ThumbnailDto, description: 'thumbnail by id' })
-  async getThumbnailById(@OriginUrl() origin: string, @Param('id') id: string) {
-    return this.imageToolsService.getThumbnailById(id, origin);
+  async getThumbnailById(@Param('id') id: string) {
+    return this.imageToolsService.getThumbnailById(id);
   }
 
   @Post('thumbnails')

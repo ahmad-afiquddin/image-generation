@@ -24,8 +24,10 @@ services:
     environment:
       - NODE_ENV=production
     depends_on:
-      - redis
-      - minio-init
+      redis:
+        condition: service_started
+      minio:
+        condition: service_healthy
 
   redis:
     image: redis:alpine

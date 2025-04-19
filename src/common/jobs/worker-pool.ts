@@ -144,7 +144,7 @@ export class WorkerPool {
           void this.processQueue();
         })
         .catch((err: Error) => {
-          this.logger.error('Cannot save job: %s', err.message);
+          this.logger.error('[postEvent] Cannot save job: %s', err.message);
         });
       resolve();
     });
@@ -376,7 +376,7 @@ export class WorkerPool {
     try {
       await Promise.all(promises);
     } catch {
-      this.logger.error('Failed to terminate workers');
+      this.logger.error('[terminateAllWorkers] Failed to terminate workers');
     }
 
     this.activeWorkers.clear();

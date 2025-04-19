@@ -9,6 +9,7 @@ import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 @Injectable()
 export class ImageValidationPipe implements PipeTransform {
   /** List of acceptable MIME types for uploaded images */
+  /** Can be extended to accept other file types */
   private readonly acceptedMimeTypes = ['image/jpeg', 'image/png'];
 
   /**
